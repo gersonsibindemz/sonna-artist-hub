@@ -9,7 +9,86 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      artists: {
+        Row: {
+          bio: string | null
+          created_at: string
+          genre: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          genre?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          genre?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tracks: {
+        Row: {
+          artist_id: string
+          cover_art_url: string | null
+          created_at: string
+          duration: number | null
+          file_url: string | null
+          genre: string | null
+          id: string
+          release_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          cover_art_url?: string | null
+          created_at?: string
+          duration?: number | null
+          file_url?: string | null
+          genre?: string | null
+          id?: string
+          release_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          cover_art_url?: string | null
+          created_at?: string
+          duration?: number | null
+          file_url?: string | null
+          genre?: string | null
+          id?: string
+          release_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracks_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
