@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
   const [genre, setGenre] = useState("");
   const [bio, setBio] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [accountType, setAccountType] = useState("artist");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -38,6 +40,7 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
           genre,
           bio,
           image_url: imageUrl,
+          account_type: accountType,
         });
 
       if (error) throw error;
@@ -82,6 +85,19 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="accountType" className="text-white">Tipo de Conta *</Label>
+              <Select value={accountType} onValueChange={setAccountType}>
+                <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                  <SelectValue placeholder="Selecione o tipo de conta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="artist">Artista (até 2 artistas)</SelectItem>
+                  <SelectItem value="label">Label (até 5 artistas)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="name" className="text-white">Nome do Artista *</Label>
               <Input

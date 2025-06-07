@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Music, Plus, Clock, Trash2 } from "lucide-react";
+import { Music, Plus, Clock, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Artist {
@@ -13,6 +13,7 @@ interface Artist {
   genre: string;
   bio: string;
   image_url: string;
+  account_type: string;
 }
 
 interface Track {
@@ -21,6 +22,9 @@ interface Track {
   duration: number;
   genre: string;
   artist_id: string;
+  status: string;
+  isrc_code?: string;
+  iswc_code?: string;
 }
 
 interface ArtistCardProps {
@@ -69,6 +73,34 @@ const ArtistCard = ({ artist, tracks, onAddTrack, onRefresh }: ArtistCardProps) 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved': return <CheckCircle className="h-3 w-3 text-green-400" />;
+      case 'rejected': return <XCircle className="h-3 w-3 text-red-400" />;
+      default: return <Clock className="h-3 w-3 text-yellow-400" />;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'approved': return 'Aprovada';
+      case 'rejected': return 'Rejeitada';
+      default: return 'Pendente';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'text-green-400';
+      case 'rejected': return 'text-red-400';
+      default: return 'text-yellow-400';
+    }
+  };
+
+  const pendingTracks = tracks.filter(t => t.status === 'pending');
+  const approvedTracks = tracks.filter(t => t.status === 'approved');
+  const rejectedTracks = tracks.filter(t => t.status === 'rejected');
+
   return (
     <Card className="bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/15 transition-all">
       <CardHeader>
@@ -87,11 +119,16 @@ const ArtistCard = ({ artist, tracks, onAddTrack, onRefresh }: ArtistCardProps) 
           <div className="flex-1">
             <CardTitle className="text-white">{artist.name}</CardTitle>
             <CardDescription className="text-gray-300">
-              {artist.genre && (
-                <Badge variant="secondary" className="mb-2">
-                  {artist.genre}
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                {artist.genre && (
+                  <Badge variant="secondary">
+                    {artist.genre}
+                  </Badge>
+                )}
+                <Badge variant={artist.account_type === 'label' ? 'default' : 'outline'}>
+                  {artist.account_type === 'label' ? 'Label' : 'Artista'}
                 </Badge>
-              )}
+              </div>
               {artist.bio && <p className="text-sm">{artist.bio}</p>}
             </CardDescription>
           </div>
@@ -100,55 +137,78 @@ const ArtistCard = ({ artist, tracks, onAddTrack, onRefresh }: ArtistCardProps) 
       <CardContent>
         <div className="space-y-4">
           {/* Stats */}
-          <div className="flex justify-between text-sm text-gray-300">
-            <span>{tracks.length}/5 faixas</span>
-            <span>{tracks.reduce((acc, track) => acc + track.duration, 0)} segundos total</span>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="text-lg font-bold text-white">{tracks.length}</div>
+              <div className="text-xs text-gray-400">Total</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="text-lg font-bold text-green-400">{approvedTracks.length}</div>
+              <div className="text-xs text-gray-400">Aprovadas</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2">
+              <div className="text-lg font-bold text-yellow-400">{pendingTracks.length}</div>
+              <div className="text-xs text-gray-400">Pendentes</div>
+            </div>
           </div>
 
           {/* Tracks List */}
           {tracks.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-white font-medium">Faixas:</h4>
-              {tracks.map((track) => (
-                <div key={track.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">{track.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      {track.genre && <span>{track.genre}</span>}
-                      {track.duration && (
-                        <>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDuration(track.duration)}
-                          </div>
-                        </>
+              <div className="max-h-48 overflow-y-auto space-y-2">
+                {tracks.map((track) => (
+                  <div key={track.id} className="flex items-center justify-between bg-white/5 rounded-lg p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white text-sm font-medium truncate">{track.title}</p>
+                        {getStatusIcon(track.status)}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {track.genre && <span>{track.genre}</span>}
+                        {track.duration && (
+                          <>
+                            <span>•</span>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDuration(track.duration)}
+                            </div>
+                          </>
+                        )}
+                        <span>•</span>
+                        <span className={getStatusColor(track.status)}>
+                          {getStatusText(track.status)}
+                        </span>
+                      </div>
+                      {track.isrc_code && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ISRC: {track.isrc_code}
+                        </div>
                       )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteTrack(track.id, track.title)}
+                      disabled={loading}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteTrack(track.id, track.title)}
-                    disabled={loading}
-                    className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Add Track Button */}
           <Button
             onClick={onAddTrack}
-            disabled={tracks.length >= 5}
             className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
             variant="outline"
           >
             <Plus className="h-4 w-4 mr-2" />
-            {tracks.length >= 5 ? "Limite atingido" : "Adicionar Faixa"}
+            Adicionar Faixa
           </Button>
         </div>
       </CardContent>

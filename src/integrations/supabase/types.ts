@@ -9,8 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      approvals: {
+        Row: {
+          analyst_id: string | null
+          comments: string | null
+          created_at: string | null
+          id: string
+          reviewed_at: string | null
+          status: string | null
+          track_id: string | null
+        }
+        Insert: {
+          analyst_id?: string | null
+          comments?: string | null
+          created_at?: string | null
+          id?: string
+          reviewed_at?: string | null
+          status?: string | null
+          track_id?: string | null
+        }
+        Update: {
+          analyst_id?: string | null
+          comments?: string | null
+          created_at?: string | null
+          id?: string
+          reviewed_at?: string | null
+          status?: string | null
+          track_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artists: {
         Row: {
+          account_type: string | null
           bio: string | null
           created_at: string
           genre: string | null
@@ -21,6 +60,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          account_type?: string | null
           bio?: string | null
           created_at?: string
           genre?: string | null
@@ -31,6 +71,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          account_type?: string | null
           bio?: string | null
           created_at?: string
           genre?: string | null
@@ -42,42 +83,164 @@ export type Database = {
         }
         Relationships: []
       }
+      duplicate_notifications: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          external_id: string | null
+          external_platform: string | null
+          id: string
+          similarity_score: number | null
+          status: string | null
+          track_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          external_id?: string | null
+          external_platform?: string | null
+          id?: string
+          similarity_score?: number | null
+          status?: string | null
+          track_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          external_id?: string | null
+          external_platform?: string | null
+          id?: string
+          similarity_score?: number | null
+          status?: string | null
+          track_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_notifications_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tracks: {
         Row: {
+          additional_credits: string | null
+          album: string | null
+          album_notes: string | null
           artist_id: string
+          bit_rate: number | null
+          channels: string | null
+          composer: string | null
+          copyright_holder: string | null
           cover_art_url: string | null
           created_at: string
           duration: number | null
+          extra_comments: string | null
+          file_format: string | null
           file_url: string | null
           genre: string | null
           id: string
+          isrc_code: string | null
+          iswc_code: string | null
+          language: string | null
+          license_type: string | null
+          lyricist: string | null
+          lyrics: string | null
+          pro_society: string | null
+          publisher: string | null
+          record_label: string | null
+          recording_date: string | null
+          release_country: string | null
           release_date: string | null
+          sample_rate: number | null
+          status: string | null
+          tags: string[] | null
           title: string
+          track_number: number | null
+          track_type: string | null
+          upc_ean_code: string | null
           updated_at: string
+          year: number | null
         }
         Insert: {
+          additional_credits?: string | null
+          album?: string | null
+          album_notes?: string | null
           artist_id: string
+          bit_rate?: number | null
+          channels?: string | null
+          composer?: string | null
+          copyright_holder?: string | null
           cover_art_url?: string | null
           created_at?: string
           duration?: number | null
+          extra_comments?: string | null
+          file_format?: string | null
           file_url?: string | null
           genre?: string | null
           id?: string
+          isrc_code?: string | null
+          iswc_code?: string | null
+          language?: string | null
+          license_type?: string | null
+          lyricist?: string | null
+          lyrics?: string | null
+          pro_society?: string | null
+          publisher?: string | null
+          record_label?: string | null
+          recording_date?: string | null
+          release_country?: string | null
           release_date?: string | null
+          sample_rate?: number | null
+          status?: string | null
+          tags?: string[] | null
           title: string
+          track_number?: number | null
+          track_type?: string | null
+          upc_ean_code?: string | null
           updated_at?: string
+          year?: number | null
         }
         Update: {
+          additional_credits?: string | null
+          album?: string | null
+          album_notes?: string | null
           artist_id?: string
+          bit_rate?: number | null
+          channels?: string | null
+          composer?: string | null
+          copyright_holder?: string | null
           cover_art_url?: string | null
           created_at?: string
           duration?: number | null
+          extra_comments?: string | null
+          file_format?: string | null
           file_url?: string | null
           genre?: string | null
           id?: string
+          isrc_code?: string | null
+          iswc_code?: string | null
+          language?: string | null
+          license_type?: string | null
+          lyricist?: string | null
+          lyrics?: string | null
+          pro_society?: string | null
+          publisher?: string | null
+          record_label?: string | null
+          recording_date?: string | null
+          release_country?: string | null
           release_date?: string | null
+          sample_rate?: number | null
+          status?: string | null
+          tags?: string[] | null
           title?: string
+          track_number?: number | null
+          track_type?: string | null
+          upc_ean_code?: string | null
           updated_at?: string
+          year?: number | null
         }
         Relationships: [
           {
@@ -94,7 +257,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_isrc_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_iswc_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      send_welcome_email: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
