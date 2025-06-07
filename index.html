@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -6,6 +7,22 @@
     <title>sonna-artist-hub</title>
     <meta name="description" content="Lovable Generated Project" />
     <meta name="author" content="Lovable" />
+
+    <!-- Content Security Policy to prevent eval and other security issues -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' https://lovable.dev https://api.supabase.co https://supabase.co;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://api.supabase.co https://supabase.co wss://realtime.supabase.co https://musicbrainz.org;
+      media-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+      frame-ancestors 'none';
+      upgrade-insecure-requests;
+    ">
 
     <meta property="og:title" content="sonna-artist-hub" />
     <meta property="og:description" content="Lovable Generated Project" />
