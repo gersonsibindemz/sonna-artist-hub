@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Music, Users, Upload } from "lucide-react";
+import { Music, Users, Upload, Phone, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
 
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [usePhone, setUsePhone] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -20,31 +23,90 @@ const AuthForm = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Bem-vindo à plataforma Sonna For Artists",
-        });
+      if (usePhone) {
+        // Autenticação por telefone
+        if (isLogin) {
+          const { error } = await supabase.auth.signInWithOtp({
+            phone: phone,
+          });
+          if (error) throw error;
+          toast({
+            title: "Código SMS enviado!",
+            description: "Verifique seu telefone para o código de verificação",
+          });
+        } else {
+          const { error } = await supabase.auth.signUp({
+            phone: phone,
+            password: password,
+          });
+          if (error) throw error;
+          toast({
+            title: "Conta criada com sucesso!",
+            description: "Verifique seu telefone para confirmar a conta",
+          });
+        }
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Verifique seu email para confirmar a conta",
-        });
+        // Autenticação por email
+        if (isLogin) {
+          const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (error) throw error;
+          toast({
+            title: "Login realizado com sucesso!",
+            description: "Bem-vindo à plataforma Sonna For Artists",
+          });
+        } else {
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/`,
+            },
+          });
+          if (error) throw error;
+          toast({
+            title: "Conta criada com sucesso!",
+            description: "Verifique seu email para confirmar a conta",
+          });
+        }
       }
     } catch (error: any) {
+      console.error("Erro de autenticação:", error);
+      let errorMessage = "Erro desconhecido";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.error_description) {
+        errorMessage = error.error_description;
+      }
+
       toast({
         title: "Erro",
-        description: error.message,
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = async (provider: 'google' | 'apple') => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Erro no login social:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao fazer login social",
         variant: "destructive",
       });
     } finally {
@@ -95,32 +157,103 @@ const AuthForm = () => {
               }
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Social Login Buttons */}
+            <div className="space-y-3">
+              <Button 
+                onClick={() => handleSocialLogin('google')}
+                className="w-full bg-white text-black hover:bg-gray-100 font-semibold"
+                disabled={loading}
+                type="button"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Continuar com Google
+              </Button>
+              
+              <Button 
+                onClick={() => handleSocialLogin('apple')}
+                className="w-full bg-black text-white hover:bg-gray-800 font-semibold"
+                disabled={loading}
+                type="button"
+              >
+                🍎 Continuar com Apple
+              </Button>
+            </div>
+
+            <div className="flex items-center">
+              <Separator className="flex-1" />
+              <span className="px-3 text-gray-400 text-sm">ou</span>
+              <Separator className="flex-1" />
+            </div>
+
+            {/* Auth Method Toggle */}
+            <div className="flex space-x-2">
+              <Button
+                type="button"
+                variant={!usePhone ? "default" : "outline"}
+                onClick={() => setUsePhone(false)}
+                className="flex-1"
+                size="sm"
+              >
+                <Mail className="h-4 w-4 mr-1" />
+                Email
+              </Button>
+              <Button
+                type="button"
+                variant={usePhone ? "default" : "outline"}
+                onClick={() => setUsePhone(true)}
+                className="flex-1"
+                size="sm"
+              >
+                <Phone className="h-4 w-4 mr-1" />
+                Telefone
+              </Button>
+            </div>
+
             <form onSubmit={handleAuth} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                  placeholder="seu@email.com"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-white">Senha</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+              {usePhone ? (
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-white">Telefone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    placeholder="+351 912 345 678"
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-white">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    placeholder="seu@email.com"
+                    required
+                  />
+                </div>
+              )}
+              
+              {(!usePhone || !isLogin) && (
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-white">Senha</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+              )}
+
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-semibold"
