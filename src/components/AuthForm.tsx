@@ -1,13 +1,15 @@
 
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Music, Users, Upload, Phone, Mail } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Music, Headphones, TrendingUp, Phone, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
+import CountrySelector from "@/components/CountrySelector";
+import { countries, detectUserCountry } from "@/data/countries";
+import type { Country } from "@/types/auth";
 
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,100 +17,39 @@ const AuthForm = () => {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [usePhone, setUsePhone] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<Country>(countries[0]);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { login, register } = useAuth();
+
+  useEffect(() => {
+    // Detectar país do usuário automaticamente
+    const detectedCountryCode = detectUserCountry();
+    const country = countries.find(c => c.code === detectedCountryCode) || countries[0];
+    setSelectedCountry(country);
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (usePhone) {
-        // Autenticação por telefone
-        if (isLogin) {
-          const { error } = await supabase.auth.signInWithOtp({
-            phone: phone,
-          });
-          if (error) throw error;
-          toast({
-            title: "Código SMS enviado!",
-            description: "Verifique seu telefone para o código de verificação",
-          });
-        } else {
-          const { error } = await supabase.auth.signUp({
-            phone: phone,
-            password: password,
-          });
-          if (error) throw error;
-          toast({
-            title: "Conta criada com sucesso!",
-            description: "Verifique seu telefone para confirmar a conta",
-          });
-        }
+      let result;
+      
+      if (isLogin) {
+        const emailOrPhone = usePhone ? `${selectedCountry.dialCode}${phone}` : email;
+        result = await login(emailOrPhone, password);
       } else {
-        // Autenticação por email
-        if (isLogin) {
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) throw error;
-          toast({
-            title: "Login realizado com sucesso!",
-            description: "Bem-vindo à plataforma Sonna For Artists",
-          });
-        } else {
-          const { error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/`,
-            },
-          });
-          if (error) throw error;
-          toast({
-            title: "Conta criada com sucesso!",
-            description: "Verifique seu email para confirmar a conta",
-          });
-        }
+        const emailValue = usePhone ? null : email;
+        const phoneValue = usePhone ? `${selectedCountry.dialCode}${phone}` : null;
+        result = await register(emailValue, phoneValue, password, selectedCountry.dialCode);
+      }
+
+      if (result.error) {
+        throw new Error(result.error);
       }
     } catch (error: any) {
       console.error("Erro de autenticação:", error);
-      let errorMessage = "Erro desconhecido";
-      
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.error_description) {
-        errorMessage = error.error_description;
-      }
-
-      toast({
-        title: "Erro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSocialLogin = async (provider: 'google' | 'apple') => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: provider,
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      console.error("Erro no login social:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao fazer login social",
-        variant: "destructive",
-      });
+      // O toast será exibido pelo hook useAuth
     } finally {
       setLoading(false);
     }
@@ -124,22 +65,22 @@ const AuthForm = () => {
               Sonna For Artists
             </h1>
             <p className="text-xl text-gray-300">
-              Sua plataforma para distribuição musical digital
+              Sua plataforma completa para distribuição e gestão musical
             </p>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <Users className="h-6 w-6 text-yellow-400" />
-              <span>Cadastre até 2 artistas</span>
-            </div>
-            <div className="flex items-center space-x-3">
               <Music className="h-6 w-6 text-yellow-400" />
-              <span>5 faixas por artista</span>
+              <span>Distribuição para todas as plataformas digitais</span>
             </div>
             <div className="flex items-center space-x-3">
-              <Upload className="h-6 w-6 text-yellow-400" />
-              <span>Upload direto e simples</span>
+              <Headphones className="h-6 w-6 text-yellow-400" />
+              <span>Gestão completa de catálogo musical</span>
+            </div>
+            <div className="flex items-center space-x-3">
+              <TrendingUp className="h-6 w-6 text-yellow-400" />
+              <span>Relatórios detalhados e analytics</span>
             </div>
           </div>
         </div>
@@ -152,40 +93,12 @@ const AuthForm = () => {
             </CardTitle>
             <CardDescription className="text-gray-300">
               {isLogin 
-                ? "Entre na sua conta para gerenciar seus artistas" 
-                : "Crie sua conta e comece a distribuir sua música"
+                ? "Entre na sua conta para acessar sua música" 
+                : "Crie sua conta e comece a distribuir sua música hoje"
               }
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Social Login Buttons */}
-            <div className="space-y-3">
-              <Button 
-                onClick={() => handleSocialLogin('google')}
-                className="w-full bg-white text-black hover:bg-gray-100 font-semibold"
-                disabled={loading}
-                type="button"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Continuar com Google
-              </Button>
-              
-              <Button 
-                onClick={() => handleSocialLogin('apple')}
-                className="w-full bg-black text-white hover:bg-gray-800 font-semibold"
-                disabled={loading}
-                type="button"
-              >
-                🍎 Continuar com Apple
-              </Button>
-            </div>
-
-            <div className="flex items-center">
-              <Separator className="flex-1" />
-              <span className="px-3 text-gray-400 text-sm">ou</span>
-              <Separator className="flex-1" />
-            </div>
-
             {/* Auth Method Toggle */}
             <div className="flex space-x-2">
               <Button
@@ -214,14 +127,11 @@ const AuthForm = () => {
               {usePhone ? (
                 <div className="space-y-2">
                   <Label htmlFor="phone" className="text-white">Telefone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                    placeholder="+351 912 345 678"
-                    required
+                  <CountrySelector
+                    selectedCountry={selectedCountry}
+                    onCountryChange={setSelectedCountry}
+                    onPhoneChange={setPhone}
+                    phoneValue={phone}
                   />
                 </div>
               ) : (
@@ -239,20 +149,19 @@ const AuthForm = () => {
                 </div>
               )}
               
-              {(!usePhone || !isLogin) && (
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-white">Senha</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-white">Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                />
+              </div>
 
               <Button 
                 type="submit" 

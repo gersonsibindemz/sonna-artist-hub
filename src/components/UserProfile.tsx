@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, User, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface UserProfileProps {
   onClose: () => void;
@@ -29,8 +29,9 @@ interface UserProfile {
 }
 
 const UserProfile = ({ onClose }: UserProfileProps) => {
+  const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
-    user_id: '',
+    user_id: user?.id || '',
     first_name: '',
     last_name: '',
     phone: '',
@@ -47,18 +48,17 @@ const UserProfile = ({ onClose }: UserProfileProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
   const fetchProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data, error } = await supabase
         .from("user_profiles")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -68,7 +68,7 @@ const UserProfile = ({ onClose }: UserProfileProps) => {
       if (data) {
         setProfile(data);
       } else {
-        setProfile(prev => ({ ...prev, user_id: user.id }));
+        setProfile(prev => ({ ...prev, user_id: user!.id }));
       }
     } catch (error: any) {
       toast({
@@ -86,7 +86,6 @@ const UserProfile = ({ onClose }: UserProfileProps) => {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       const profileData = {
