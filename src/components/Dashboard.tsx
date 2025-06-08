@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Music, Users, Plus, LogOut, Disc, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Music, Users, Plus, LogOut, Disc, Clock, CheckCircle, XCircle, User, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ArtistForm from "@/components/ArtistForm";
 import TrackForm from "@/components/TrackForm";
 import ArtistCard from "@/components/ArtistCard";
+import UserProfile from "@/components/UserProfile";
+import ProjectDetails from "@/components/ProjectDetails";
 
 interface Artist {
   id: string;
@@ -32,6 +34,7 @@ interface Track {
   year: number;
   album: string;
   created_at: string;
+  cover_art_url: string;
 }
 
 interface Approval {
@@ -48,7 +51,10 @@ const Dashboard = () => {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [showArtistForm, setShowArtistForm] = useState(false);
   const [showTrackForm, setShowTrackForm] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState<string>("");
+  const [selectedTrack, setSelectedTrack] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -100,6 +106,11 @@ const Dashboard = () => {
   const handleAddTrack = (artistId: string) => {
     setSelectedArtist(artistId);
     setShowTrackForm(true);
+  };
+
+  const handleViewProject = (trackId: string) => {
+    setSelectedTrack(trackId);
+    setShowProjectDetails(true);
   };
 
   const getTracksByArtist = (artistId: string) => {
@@ -161,14 +172,24 @@ const Dashboard = () => {
           </h1>
           <p className="text-gray-300">Gerencie seus artistas e músicas</p>
         </div>
-        <Button 
-          onClick={handleLogout}
-          variant="outline"
-          className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sair
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowUserProfile(true)}
+            variant="outline"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+          >
+            <User className="h-4 w-4 mr-2" />
+            Perfil
+          </Button>
+          <Button 
+            onClick={handleLogout}
+            variant="outline"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sair
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -322,18 +343,24 @@ const Dashboard = () => {
                     {pendingTracks.map((track) => {
                       const artist = artists.find(a => a.id === track.artist_id);
                       return (
-                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20 cursor-pointer hover:bg-white/15 transition-colors"
+                              onClick={() => handleViewProject(track.id)}>
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                              {track.cover_art_url && (
+                                <img src={track.cover_art_url} alt={track.title} className="w-12 h-12 object-cover rounded" />
+                              )}
+                              <div className="flex-1 ml-3">
+                                <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                                <CardDescription className="text-gray-300">
+                                  {artist?.name} • {track.genre}
+                                </CardDescription>
+                              </div>
                               <Badge className={getStatusColor(track.status)}>
                                 {getStatusIcon(track.status)}
                                 <span className="ml-1">{getStatusText(track.status)}</span>
                               </Badge>
                             </div>
-                            <CardDescription className="text-gray-300">
-                              {artist?.name} • {track.genre}
-                            </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-2">
                             <div className="text-sm text-gray-400">
@@ -361,18 +388,24 @@ const Dashboard = () => {
                       const artist = artists.find(a => a.id === track.artist_id);
                       const approval = approvals.find(a => a.track_id === track.id);
                       return (
-                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20 cursor-pointer hover:bg-white/15 transition-colors"
+                              onClick={() => handleViewProject(track.id)}>
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                              {track.cover_art_url && (
+                                <img src={track.cover_art_url} alt={track.title} className="w-12 h-12 object-cover rounded" />
+                              )}
+                              <div className="flex-1 ml-3">
+                                <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                                <CardDescription className="text-gray-300">
+                                  {artist?.name} • {track.genre}
+                                </CardDescription>
+                              </div>
                               <Badge className={getStatusColor(track.status)}>
                                 {getStatusIcon(track.status)}
                                 <span className="ml-1">{getStatusText(track.status)}</span>
                               </Badge>
                             </div>
-                            <CardDescription className="text-gray-300">
-                              {artist?.name} • {track.genre}
-                            </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-2">
                             <div className="text-sm text-gray-400">
@@ -405,18 +438,24 @@ const Dashboard = () => {
                       const artist = artists.find(a => a.id === track.artist_id);
                       const approval = approvals.find(a => a.track_id === track.id);
                       return (
-                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20">
+                        <Card key={track.id} className="bg-white/10 backdrop-blur-md border-white/20 cursor-pointer hover:bg-white/15 transition-colors"
+                              onClick={() => handleViewProject(track.id)}>
                           <CardHeader className="pb-3">
                             <div className="flex items-center justify-between">
-                              <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                              {track.cover_art_url && (
+                                <img src={track.cover_art_url} alt={track.title} className="w-12 h-12 object-cover rounded" />
+                              )}
+                              <div className="flex-1 ml-3">
+                                <CardTitle className="text-white text-lg">{track.title}</CardTitle>
+                                <CardDescription className="text-gray-300">
+                                  {artist?.name} • {track.genre}
+                                </CardDescription>
+                              </div>
                               <Badge className={getStatusColor(track.status)}>
                                 {getStatusIcon(track.status)}
                                 <span className="ml-1">{getStatusText(track.status)}</span>
                               </Badge>
                             </div>
-                            <CardDescription className="text-gray-300">
-                              {artist?.name} • {track.genre}
-                            </CardDescription>
                           </CardHeader>
                           <CardContent className="space-y-2">
                             <div className="text-sm text-gray-400">
@@ -461,6 +500,19 @@ const Dashboard = () => {
             setShowTrackForm(false);
             fetchData();
           }}
+        />
+      )}
+
+      {showUserProfile && (
+        <UserProfile
+          onClose={() => setShowUserProfile(false)}
+        />
+      )}
+
+      {showProjectDetails && (
+        <ProjectDetails
+          trackId={selectedTrack}
+          onClose={() => setShowProjectDetails(false)}
         />
       )}
     </div>

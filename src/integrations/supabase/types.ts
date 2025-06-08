@@ -124,6 +124,123 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          status: string | null
+          subject: string
+          user_email: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          subject: string
+          user_email: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          subject?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
+      error_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string
+          function_name: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message: string
+          function_name: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string
+          function_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      platform_submissions: {
+        Row: {
+          id: string
+          platform_id: string
+          reviewed_at: string | null
+          status: string | null
+          streaming_url: string | null
+          submitted_at: string | null
+          track_id: string
+        }
+        Insert: {
+          id?: string
+          platform_id: string
+          reviewed_at?: string | null
+          status?: string | null
+          streaming_url?: string | null
+          submitted_at?: string | null
+          track_id: string
+        }
+        Update: {
+          id?: string
+          platform_id?: string
+          reviewed_at?: string | null
+          status?: string | null
+          streaming_url?: string | null
+          submitted_at?: string | null
+          track_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_submissions_platform_id_fkey"
+            columns: ["platform_id"]
+            isOneToOne: false
+            referencedRelation: "streaming_platforms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_submissions_track_id_fkey"
+            columns: ["track_id"]
+            isOneToOne: false
+            referencedRelation: "tracks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streaming_platforms: {
+        Row: {
+          base_url: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+        }
+        Insert: {
+          base_url?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+        }
+        Update: {
+          base_url?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
       tracks: {
         Row: {
           additional_credits: string | null
@@ -252,6 +369,57 @@ export type Database = {
           },
         ]
       }
+      user_profiles: {
+        Row: {
+          address: string | null
+          bio: string | null
+          city: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          postal_code: string | null
+          updated_at: string | null
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          bio?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          bio?: string | null
+          city?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -261,12 +429,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_isrc_code_v2: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_iswc_code: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
       send_welcome_email: {
-        Args: { user_email: string }
+        Args: { user_email?: string }
         Returns: undefined
       }
     }
