@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import type { Artist } from "@/types/auth";
 
 const Dashboard = () => {
@@ -32,19 +33,20 @@ const Dashboard = () => {
 
   const fetchArtists = async () => {
     try {
-      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/artists?user_id=eq.${user!.id}&order=created_at.desc`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        }
-      });
+      console.log('Fetching artists for user:', user?.id);
+      
+      const { data, error } = await supabase
+        .from('artists')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
 
-      if (response.ok) {
-        const data = await response.json();
-        setArtists(data || []);
-      } else {
-        throw new Error('Erro ao buscar artistas');
+      if (error) {
+        throw error;
       }
+
+      console.log('Artists fetched:', data);
+      setArtists(data || []);
     } catch (error: any) {
       console.error("Erro ao buscar artistas:", error);
       toast({

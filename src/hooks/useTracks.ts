@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import type { Track } from "@/types/track";
 
 export const useTracks = (artistId: string) => {
@@ -14,17 +15,17 @@ export const useTracks = (artistId: string) => {
 
   const fetchTracks = async () => {
     try {
-      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/tracks?artist_id=eq.${artistId}&order=created_at.desc`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        }
-      });
+      const { data, error } = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('artist_id', artistId)
+        .order('created_at', { ascending: false });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTracks(data || []);
+      if (error) {
+        throw error;
       }
+
+      setTracks(data || []);
     } catch (error) {
       console.error("Erro ao buscar faixas:", error);
     }
@@ -35,23 +36,20 @@ export const useTracks = (artistId: string) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/tracks?id=eq.${trackId}`, {
-        method: 'DELETE',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        }
-      });
+      const { error } = await supabase
+        .from('tracks')
+        .delete()
+        .eq('id', trackId);
 
-      if (response.ok) {
-        toast({
-          title: "Faixa excluída",
-          description: `"${trackTitle}" foi removida com sucesso.`,
-        });
-        fetchTracks();
-      } else {
-        throw new Error('Erro ao excluir faixa');
+      if (error) {
+        throw error;
       }
+
+      toast({
+        title: "Faixa excluída",
+        description: `"${trackTitle}" foi removida com sucesso.`,
+      });
+      fetchTracks();
     } catch (error: any) {
       toast({
         title: "Erro ao excluir faixa",

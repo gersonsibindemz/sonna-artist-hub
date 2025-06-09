@@ -1,17 +1,18 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Session, AuthResponse } from '@/types/auth';
+import { supabase } from '@/integrations/supabase/client';
+import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  login: (emailOrPhone: string, password: string) => Promise<AuthResponse>;
-  register: (email: string | null, phone: string | null, password: string, countryCode: string) => Promise<AuthResponse>;
+  login: (emailOrPhone: string, password: string) => Promise<{ error?: string }>;
+  register: (email: string | null, phone: string | null, password: string, countryCode: string) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
   sendVerificationCode: (emailOrPhone: string, type: 'email' | 'phone') => Promise<{ error?: string }>;
-  verifyCode: (emailOrPhone: string, code: string, type: 'email' | 'phone') => Promise<AuthResponse>;
+  verifyCode: (emailOrPhone: string, code: string, type: 'email' | 'phone') => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,132 +36,64 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      const token = localStorage.getItem('sonna_session_token');
-      if (!token) {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
         setLoading(false);
-        return;
-      }
 
-      // Usar fetch direto para evitar problemas de tipagem do Supabase
-      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/user_sessions?token=eq.${token}&expires_at=gt.${new Date().toISOString()}&select=*,users(*)`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+        if (event === 'SIGNED_IN') {
+          toast({
+            title: "Login realizado com sucesso!",
+            description: "Bem-vindo de volta à plataforma Sonna For Artists",
+          });
         }
-      });
 
-      if (!response.ok) {
-        localStorage.removeItem('sonna_session_token');
-        setLoading(false);
-        return;
+        if (event === 'SIGNED_OUT') {
+          toast({
+            title: "Logout realizado",
+            description: "Até logo!",
+          });
+        }
       }
+    );
 
-      const data = await response.json();
-      if (data && data.length > 0) {
-        const sessionData = data[0];
-        setSession(sessionData);
-        setUser(sessionData.users);
-      } else {
-        localStorage.removeItem('sonna_session_token');
-      }
-    } catch (error) {
-      console.error('Erro ao verificar sessão:', error);
-      localStorage.removeItem('sonna_session_token');
-    } finally {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
-    }
-  };
+    });
 
-  const login = async (emailOrPhone: string, password: string): Promise<AuthResponse> => {
+    return () => subscription.unsubscribe();
+  }, [toast]);
+
+  const login = async (emailOrPhone: string, password: string) => {
     try {
-      const isEmail = emailOrPhone.includes('@');
-      const field = isEmail ? 'email' : 'phone';
-
-      // Buscar usuário usando API REST direta
-      const userResponse = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/users?${field}=eq.${emailOrPhone}&is_active=eq.true`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        }
+      setLoading(true);
+      
+      // Use Supabase Auth for login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: emailOrPhone.includes('@') ? emailOrPhone : '',
+        phone: !emailOrPhone.includes('@') ? emailOrPhone : '',
+        password,
       });
 
-      if (!userResponse.ok) {
-        throw new Error('Erro ao verificar usuário');
+      if (error) {
+        console.error('Login error:', error);
+        toast({
+          title: "Erro no login",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error: error.message };
       }
 
-      const userData = await userResponse.json();
-      if (!userData || userData.length === 0) {
-        return { error: 'Usuário não encontrado ou inativo' };
-      }
-
-      const user = userData[0];
-
-      // Verificar senha usando função personalizada simples
-      const passwordHash = btoa(password + 'salt_sonna_2024'); // Hash simples para desenvolvimento
-      if (user.password_hash !== passwordHash) {
-        return { error: 'Senha incorreta' };
-      }
-
-      // Criar sessão
-      const sessionToken = btoa(Math.random().toString(36) + Date.now().toString(36));
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 dias
-
-      const sessionResponse = await fetch('https://kqivlifcqykagpecjawk.supabase.co/rest/v1/user_sessions', {
-        method: 'POST',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          token: sessionToken,
-          expires_at: expiresAt.toISOString(),
-          ip_address: '127.0.0.1',
-          user_agent: navigator.userAgent
-        })
-      });
-
-      if (!sessionResponse.ok) {
-        throw new Error('Erro ao criar sessão');
-      }
-
-      const sessionData = await sessionResponse.json();
-      const newSession = sessionData[0];
-
-      // Atualizar último login
-      await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/users?id=eq.${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          last_login: new Date().toISOString()
-        })
-      });
-
-      // Salvar token no localStorage
-      localStorage.setItem('sonna_session_token', sessionToken);
-
-      setUser(user);
-      setSession(newSession);
-
-      toast({
-        title: "Login realizado com sucesso!",
-        description: "Bem-vindo de volta à plataforma Sonna For Artists",
-      });
-
-      return { user, session: newSession };
+      return {};
     } catch (error: any) {
-      console.error('Erro no login:', error);
+      console.error('Login error:', error);
       const errorMessage = error.message || 'Erro desconhecido no login';
       
       toast({
@@ -170,53 +103,40 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       return { error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const register = async (email: string | null, phone: string | null, password: string, countryCode: string): Promise<AuthResponse> => {
+  const register = async (email: string | null, phone: string | null, password: string, countryCode: string) => {
     try {
+      setLoading(true);
+
       if (!email && !phone) {
         return { error: 'Email ou telefone é obrigatório' };
       }
 
-      // Hash simples da senha para desenvolvimento
-      const passwordHash = btoa(password + 'salt_sonna_2024');
-
-      // Criar usuário
-      const userResponse = await fetch('https://kqivlifcqykagpecjawk.supabase.co/rest/v1/users', {
-        method: 'POST',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        body: JSON.stringify({
-          email,
-          phone,
-          password_hash: passwordHash,
-          country_code: countryCode,
-          email_verified: false,
-          phone_verified: false,
-          is_active: true
-        })
+      // Use Supabase Auth for registration
+      const { data, error } = await supabase.auth.signUp({
+        email: email || '',
+        phone: phone || '',
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            country_code: countryCode,
+          }
+        }
       });
 
-      if (!userResponse.ok) {
-        const errorData = await userResponse.json();
-        if (errorData.code === '23505') {
-          return { error: 'Email ou telefone já está em uso' };
-        }
-        throw new Error(errorData.message || 'Erro ao criar conta');
-      }
-
-      const userData = await userResponse.json();
-      const newUser = userData[0];
-
-      // Fazer login automático após registro
-      const loginResult = await login(email || phone!, password);
-      
-      if (loginResult.error) {
-        return loginResult;
+      if (error) {
+        console.error('Registration error:', error);
+        toast({
+          title: "Erro no registro",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error: error.message };
       }
 
       toast({
@@ -224,9 +144,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         description: "Bem-vindo à plataforma Sonna For Artists",
       });
 
-      return loginResult;
+      return {};
     } catch (error: any) {
-      console.error('Erro no registro:', error);
+      console.error('Registration error:', error);
       const errorMessage = error.message || 'Erro desconhecido no registro';
       
       toast({
@@ -236,94 +156,63 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       return { error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      const token = localStorage.getItem('sonna_session_token');
-      if (token) {
-        await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/user_sessions?token=eq.${token}`, {
-          method: 'DELETE',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-            'Content-Type': 'application/json'
-          }
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Logout error:', error);
+        toast({
+          title: "Erro no logout",
+          description: error.message,
+          variant: "destructive",
         });
       }
-
-      localStorage.removeItem('sonna_session_token');
-      setUser(null);
-      setSession(null);
-
+    } catch (error: any) {
+      console.error('Logout error:', error);
       toast({
-        title: "Logout realizado",
-        description: "Até logo!",
+        title: "Erro no logout",
+        description: error.message || 'Erro desconhecido no logout',
+        variant: "destructive",
       });
-    } catch (error) {
-      console.error('Erro no logout:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const sendVerificationCode = async (emailOrPhone: string, type: 'email' | 'phone') => {
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutos
-
-      const insertData: any = {
-        code,
-        type: `${type}_verification`,
-        expires_at: expiresAt.toISOString(),
-        used: false
-      };
-
-      insertData[type] = emailOrPhone;
-
-      await fetch('https://kqivlifcqykagpecjawk.supabase.co/rest/v1/verification_codes', {
-        method: 'POST',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(insertData)
-      });
-
-      // Em produção, enviar email/SMS real
-      console.log(`Código de verificação para ${emailOrPhone}: ${code}`);
-      
-      return {};
+      if (type === 'email') {
+        const { error } = await supabase.auth.resetPasswordForEmail(emailOrPhone, {
+          redirectTo: `${window.location.origin}/`,
+        });
+        return { error: error?.message };
+      } else {
+        // For phone verification, you would implement SMS sending here
+        console.log(`Verification code would be sent to phone: ${emailOrPhone}`);
+        return {};
+      }
     } catch (error: any) {
       return { error: error.message };
     }
   };
 
-  const verifyCode = async (emailOrPhone: string, code: string, type: 'email' | 'phone'): Promise<AuthResponse> => {
+  const verifyCode = async (emailOrPhone: string, code: string, type: 'email' | 'phone') => {
     try {
-      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/verification_codes?${type}=eq.${emailOrPhone}&code=eq.${code}&type=eq.${type}_verification&used=eq.false&expires_at=gt.${new Date().toISOString()}`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-      if (!data || data.length === 0) {
-        return { error: 'Código inválido ou expirado' };
+      if (type === 'phone') {
+        const { error } = await supabase.auth.verifyOtp({
+          phone: emailOrPhone,
+          token: code,
+          type: 'sms'
+        });
+        return { error: error?.message };
       }
-
-      const verification = data[0];
-
-      // Marcar código como usado
-      await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/verification_codes?id=eq.${verification.id}`, {
-        method: 'PATCH',
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ used: true })
-      });
-
       return {};
     } catch (error: any) {
       return { error: error.message };
