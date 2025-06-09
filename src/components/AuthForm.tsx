@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Music, Headphones, TrendingUp, Phone, Mail } from "lucide-react";
+import { Music, Headphones, TrendingUp, Phone, Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import CountrySelector from "@/components/CountrySelector";
 import { countries, detectUserCountry } from "@/data/countries";
@@ -18,6 +18,7 @@ const AuthForm = () => {
   const [usePhone, setUsePhone] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country>(countries[0]);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { login, register } = useAuth();
 
   useEffect(() => {
@@ -27,9 +28,52 @@ const AuthForm = () => {
     setSelectedCountry(country);
   }, []);
 
+  // Clear errors when switching between login/register or auth methods
+  useEffect(() => {
+    setErrors({});
+  }, [isLogin, usePhone]);
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Validate email or phone
+    if (usePhone) {
+      if (!phone.trim()) {
+        newErrors.phone = 'Telefone é obrigatório';
+      } else {
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone.length < 8 || cleanPhone.length > 15) {
+          newErrors.phone = 'Formato de telefone inválido';
+        }
+      }
+    } else {
+      if (!email.trim()) {
+        newErrors.email = 'Email é obrigatório';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        newErrors.email = 'Formato de email inválido';
+      }
+    }
+
+    // Validate password
+    if (!password.trim()) {
+      newErrors.password = 'Senha é obrigatória';
+    } else if (password.length < 6) {
+      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
+    setErrors({});
 
     try {
       let result;
@@ -44,10 +88,11 @@ const AuthForm = () => {
       }
 
       if (result.error) {
-        throw new Error(result.error);
+        setErrors({ general: result.error });
       }
     } catch (error: any) {
       console.error("Erro de autenticação:", error);
+      setErrors({ general: 'Erro inesperado. Tente novamente.' });
     } finally {
       setLoading(false);
     }
@@ -97,6 +142,14 @@ const AuthForm = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* General Error Display */}
+            {errors.general && (
+              <div className="flex items-center space-x-2 p-3 bg-red-500/20 border border-red-500/30 rounded-md">
+                <AlertCircle className="h-4 w-4 text-red-400" />
+                <span className="text-red-400 text-sm">{errors.general}</span>
+              </div>
+            )}
+
             {/* Auth Method Toggle */}
             <div className="flex space-x-2">
               <Button
@@ -105,6 +158,7 @@ const AuthForm = () => {
                 onClick={() => setUsePhone(false)}
                 className="flex-1"
                 size="sm"
+                disabled={loading}
               >
                 <Mail className="h-4 w-4 mr-1" />
                 Email
@@ -115,6 +169,7 @@ const AuthForm = () => {
                 onClick={() => setUsePhone(true)}
                 className="flex-1"
                 size="sm"
+                disabled={loading}
               >
                 <Phone className="h-4 w-4 mr-1" />
                 Telefone
@@ -131,6 +186,9 @@ const AuthForm = () => {
                     onPhoneChange={setPhone}
                     phoneValue={phone}
                   />
+                  {errors.phone && (
+                    <p className="text-red-400 text-sm">{errors.phone}</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -142,8 +200,11 @@ const AuthForm = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                     placeholder="seu@email.com"
-                    required
+                    disabled={loading}
                   />
+                  {errors.email && (
+                    <p className="text-red-400 text-sm">{errors.email}</p>
+                  )}
                 </div>
               )}
               
@@ -156,9 +217,11 @@ const AuthForm = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
                   placeholder="••••••••"
-                  required
-                  minLength={6}
+                  disabled={loading}
                 />
+                {errors.password && (
+                  <p className="text-red-400 text-sm">{errors.password}</p>
+                )}
               </div>
 
               <Button 
@@ -166,7 +229,14 @@ const AuthForm = () => {
                 className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-semibold"
                 disabled={loading}
               >
-                {loading ? "Processando..." : (isLogin ? "Entrar" : "Criar Conta")}
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+                    <span>Processando...</span>
+                  </div>
+                ) : (
+                  isLogin ? "Entrar" : "Criar Conta"
+                )}
               </Button>
             </form>
             
@@ -174,6 +244,7 @@ const AuthForm = () => {
               <button
                 onClick={() => setIsLogin(!isLogin)}
                 className="text-yellow-400 hover:text-yellow-300 text-sm"
+                disabled={loading}
               >
                 {isLogin 
                   ? "Não tem conta? Criar nova conta" 

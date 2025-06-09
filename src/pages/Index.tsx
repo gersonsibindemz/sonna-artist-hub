@@ -5,7 +5,7 @@ import Dashboard from "@/components/Dashboard";
 import { Toaster } from "@/components/ui/toaster";
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, session } = useAuth();
 
   if (loading) {
     return (
@@ -18,10 +18,13 @@ const AppContent = () => {
     );
   }
 
+  // Show dashboard if user is authenticated with a valid session
+  const isAuthenticated = user && session;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <Toaster />
-      {!user ? <AuthForm /> : <Dashboard />}
+      {!isAuthenticated ? <AuthForm /> : <Dashboard />}
     </div>
   );
 };

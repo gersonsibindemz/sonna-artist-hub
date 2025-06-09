@@ -36,15 +36,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         console.log('Auth state changed:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
 
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' && session) {
           toast({
             title: "Login realizado com sucesso!",
             description: "Bem-vindo de volta à plataforma Sonna For Artists",
@@ -62,39 +66,126 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch((error) => {
+      console.error('Error getting initial session:', error);
+      if (!mounted) return;
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [toast]);
+
+  // Validation helper functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    // Remove all non-digit characters for validation
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length >= 8 && cleanPhone.length <= 15;
+  };
+
+  const validatePassword = (password: string): boolean => {
+    return password.length >= 6;
+  };
 
   const login = async (emailOrPhone: string, password: string) => {
     try {
       setLoading(true);
       
+      // Input validation
+      if (!emailOrPhone.trim()) {
+        const error = 'Email ou telefone é obrigatório';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      if (!validatePassword(password)) {
+        const error = 'Senha deve ter pelo menos 6 caracteres';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      const isEmail = emailOrPhone.includes('@');
+      
+      // Validate email format if it's an email
+      if (isEmail && !validateEmail(emailOrPhone)) {
+        const error = 'Formato de email inválido';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      // Validate phone format if it's a phone
+      if (!isEmail && !validatePhone(emailOrPhone)) {
+        const error = 'Formato de telefone inválido';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      console.log('Attempting login with:', isEmail ? 'email' : 'phone');
+
       // Use Supabase Auth for login
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: emailOrPhone.includes('@') ? emailOrPhone : '',
-        phone: !emailOrPhone.includes('@') ? emailOrPhone : '',
+        email: isEmail ? emailOrPhone : '',
+        phone: !isEmail ? emailOrPhone : '',
         password,
       });
 
       if (error) {
         console.error('Login error:', error);
+        let errorMessage = error.message;
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email/telefone ou senha incorretos';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Email não confirmado. Verifique sua caixa de entrada';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Muitas tentativas. Tente novamente em alguns minutos';
+        }
+        
         toast({
           title: "Erro no login",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
-        return { error: error.message };
+        return { error: errorMessage };
       }
 
+      console.log('Login successful:', data);
       return {};
     } catch (error: any) {
       console.error('Login error:', error);
-      const errorMessage = error.message || 'Erro desconhecido no login';
+      let errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente';
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMessage = 'Erro de rede. Verifique sua conexão com a internet';
+      }
       
       toast({
         title: "Erro no login",
@@ -112,11 +203,54 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       setLoading(true);
 
+      // Input validation
       if (!email && !phone) {
-        return { error: 'Email ou telefone é obrigatório' };
+        const error = 'Email ou telefone é obrigatório';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
       }
 
-      // Use Supabase Auth for registration
+      if (!validatePassword(password)) {
+        const error = 'Senha deve ter pelo menos 6 caracteres';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      // Validate email if provided
+      if (email && !validateEmail(email)) {
+        const error = 'Formato de email inválido';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      // Validate phone if provided
+      if (phone && !validatePhone(phone)) {
+        const error = 'Formato de telefone inválido';
+        toast({
+          title: "Erro de validação",
+          description: error,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      console.log('Attempting registration with:', email ? 'email' : 'phone', { email, phone });
+
+      // Prioritize email registration as it's more reliable
+      const authMethod = email ? 'email' : 'phone';
+      
       const { data, error } = await supabase.auth.signUp({
         email: email || '',
         phone: phone || '',
@@ -131,23 +265,52 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (error) {
         console.error('Registration error:', error);
+        let errorMessage = error.message;
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'Este email/telefone já está cadastrado. Tente fazer login';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = 'Senha deve ter pelo menos 6 caracteres';
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = 'Formato de email inválido';
+        } else if (error.message.includes('Invalid phone')) {
+          errorMessage = 'Formato de telefone inválido';
+        } else if (error.message.includes('SMS not available')) {
+          errorMessage = 'SMS não disponível. Tente usar email para registro';
+        }
+        
         toast({
           title: "Erro no registro",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
-        return { error: error.message };
+        return { error: errorMessage };
       }
 
-      toast({
-        title: "Conta criada com sucesso!",
-        description: "Bem-vindo à plataforma Sonna For Artists",
-      });
+      console.log('Registration successful:', data);
+
+      // Show appropriate success message based on auth method
+      if (authMethod === 'email') {
+        toast({
+          title: "Conta criada com sucesso!",
+          description: "Verifique seu email para confirmar a conta",
+        });
+      } else {
+        toast({
+          title: "Conta criada com sucesso!",
+          description: "Bem-vindo à plataforma Sonna For Artists",
+        });
+      }
 
       return {};
     } catch (error: any) {
       console.error('Registration error:', error);
-      const errorMessage = error.message || 'Erro desconhecido no registro';
+      let errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente';
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        errorMessage = 'Erro de rede. Verifique sua conexão com a internet';
+      }
       
       toast({
         title: "Erro no registro",
@@ -178,7 +341,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error('Logout error:', error);
       toast({
         title: "Erro no logout",
-        description: error.message || 'Erro desconhecido no logout',
+        description: 'Erro de conexão durante logout',
         variant: "destructive",
       });
     } finally {
@@ -194,7 +357,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         });
         return { error: error?.message };
       } else {
-        // For phone verification, you would implement SMS sending here
+        // For phone verification
         console.log(`Verification code would be sent to phone: ${emailOrPhone}`);
         return {};
       }
