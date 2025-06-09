@@ -1,20 +1,12 @@
 
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Music, Plus, Clock, Trash2, CheckCircle, XCircle } from "lucide-react";
+import { Music, Plus, Clock, Trash2, CheckCircle, XCircle, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-interface Artist {
-  id: string;
-  name: string;
-  genre: string;
-  bio: string;
-  image_url: string;
-  account_type: string;
-}
+import { useAuth } from "@/hooks/useAuth";
+import type { Artist } from "@/types/auth";
 
 interface Track {
   id: string;
@@ -29,33 +21,61 @@ interface Track {
 
 interface ArtistCardProps {
   artist: Artist;
-  tracks: Track[];
+  onEdit: () => void;
   onAddTrack: () => void;
-  onRefresh: () => void;
+  onViewDetails: () => void;
 }
 
-const ArtistCard = ({ artist, tracks, onAddTrack, onRefresh }: ArtistCardProps) => {
+const ArtistCard = ({ artist, onEdit, onAddTrack, onViewDetails }: ArtistCardProps) => {
+  const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    fetchTracks();
+  }, [artist.id]);
+
+  const fetchTracks = async () => {
+    try {
+      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/tracks?artist_id=eq.${artist.id}&order=created_at.desc`, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTracks(data || []);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar faixas:", error);
+    }
+  };
 
   const handleDeleteTrack = async (trackId: string, trackTitle: string) => {
     if (!confirm(`Tem certeza que deseja excluir "${trackTitle}"?`)) return;
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("tracks")
-        .delete()
-        .eq("id", trackId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Faixa excluída",
-        description: `"${trackTitle}" foi removida com sucesso.`,
+      const response = await fetch(`https://kqivlifcqykagpecjawk.supabase.co/rest/v1/tracks?id=eq.${trackId}`, {
+        method: 'DELETE',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
+          'Content-Type': 'application/json'
+        }
       });
 
-      onRefresh();
+      if (response.ok) {
+        toast({
+          title: "Faixa excluída",
+          description: `"${trackTitle}" foi removida com sucesso.`,
+        });
+        fetchTracks();
+      } else {
+        throw new Error('Erro ao excluir faixa');
+      }
     } catch (error: any) {
       toast({
         title: "Erro ao excluir faixa",
@@ -117,7 +137,17 @@ const ArtistCard = ({ artist, tracks, onAddTrack, onRefresh }: ArtistCardProps) 
             </div>
           )}
           <div className="flex-1">
-            <CardTitle className="text-white">{artist.name}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-white">{artist.name}</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onEdit}
+                className="text-yellow-400 hover:text-yellow-300 hover:bg-yellow-400/10"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
             <CardDescription className="text-gray-300">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 {artist.genre && (
