@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [showTrackForm, setShowTrackForm] = useState(false);
   const [showProjectDetails, setShowProjectDetails] = useState(false);
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -56,7 +57,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleArtistCreated = () => {
+  const handleArtistSuccess = () => {
     fetchArtists();
     setShowArtistForm(false);
     setEditingArtist(null);
@@ -72,12 +73,12 @@ const Dashboard = () => {
     setShowTrackForm(true);
   };
 
-  const handleViewDetails = (artist: Artist) => {
-    setSelectedArtist(artist);
+  const handleViewDetails = (trackId: string) => {
+    setSelectedTrackId(trackId);
     setShowProjectDetails(true);
   };
 
-  const handleTrackAdded = () => {
+  const handleTrackSuccess = () => {
     setShowTrackForm(false);
     setSelectedArtist(null);
   };
@@ -126,7 +127,7 @@ const Dashboard = () => {
                 artist={artist}
                 onEdit={() => handleEditArtist(artist)}
                 onAddTrack={() => handleAddTrack(artist)}
-                onViewDetails={() => handleViewDetails(artist)}
+                onViewDetails={() => handleViewDetails(artist.id)}
               />
             ))}
           </div>
@@ -138,7 +139,7 @@ const Dashboard = () => {
               setShowArtistForm(false);
               setEditingArtist(null);
             }}
-            onArtistCreated={handleArtistCreated}
+            onSuccess={handleArtistSuccess}
             editingArtist={editingArtist}
           />
         )}
@@ -150,16 +151,16 @@ const Dashboard = () => {
               setShowTrackForm(false);
               setSelectedArtist(null);
             }}
-            onTrackAdded={handleTrackAdded}
+            onSuccess={handleTrackSuccess}
           />
         )}
 
-        {showProjectDetails && selectedArtist && (
+        {showProjectDetails && selectedTrackId && (
           <ProjectDetails
-            artist={selectedArtist}
+            trackId={selectedTrackId}
             onClose={() => {
               setShowProjectDetails(false);
-              setSelectedArtist(null);
+              setSelectedTrackId(null);
             }}
           />
         )}

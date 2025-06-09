@@ -1,6 +1,5 @@
 
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,13 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import type { Artist } from "@/types/auth";
 
 interface ArtistFormProps {
   onClose: () => void;
   onSuccess: () => void;
+  editingArtist?: Artist | null;
 }
 
-const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
+const ArtistForm = ({ onClose, onSuccess, editingArtist }: ArtistFormProps) => {
   const [name, setName] = useState("");
   const [genre, setGenre] = useState("");
   const [bio, setBio] = useState("");
@@ -23,38 +25,62 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
   const [accountType, setAccountType] = useState("artist");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (editingArtist) {
+      setName(editingArtist.name);
+      setGenre(editingArtist.genre || "");
+      setBio(editingArtist.bio || "");
+      setImageUrl(editingArtist.image_url || "");
+      setAccountType(editingArtist.account_type);
+    }
+  }, [editingArtist]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+    
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      const { error } = await supabase
-        .from("artists")
-        .insert({
+      const url = editingArtist 
+        ? `https://kqivlifcqykagpecjawk.supabase.co/rest/v1/artists?id=eq.${editingArtist.id}`
+        : 'https://kqivlifcqykagpecjawk.supabase.co/rest/v1/artists';
+      
+      const method = editingArtist ? 'PATCH' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaXZsaWZjcXlrYWdwZWNqYXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkyMzA1NjMsImV4cCI6MjA2NDgwNjU2M30.1QEArhhIoKy9bJ-hG6FAw7Fiof-uUZ6GJvlg7hzq3fQ',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           user_id: user.id,
           name,
           genre,
           bio,
           image_url: imageUrl,
           account_type: accountType,
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Artista criado com sucesso!",
-        description: `${name} foi adicionado à sua lista de artistas.`,
+        })
       });
 
-      onSuccess();
+      if (response.ok) {
+        toast({
+          title: editingArtist ? "Artista atualizado!" : "Artista criado!",
+          description: `${name} foi ${editingArtist ? 'atualizado' : 'adicionado'} com sucesso.`,
+        });
+        onSuccess();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao salvar artista');
+      }
     } catch (error: any) {
+      console.error("Erro ao salvar artista:", error);
       toast({
-        title: "Erro ao criar artista",
-        description: error.message,
+        title: "Erro",
+        description: error.message || "Erro ao salvar artista",
         variant: "destructive",
       });
     } finally {
@@ -68,9 +94,11 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-white">Novo Artista</CardTitle>
+              <CardTitle className="text-white">
+                {editingArtist ? 'Editar Artista' : 'Novo Artista'}
+              </CardTitle>
               <CardDescription className="text-gray-300">
-                Adicione um novo artista ao seu catálogo
+                {editingArtist ? 'Atualize as informações do artista' : 'Adicione um novo artista ao seu catálogo'}
               </CardDescription>
             </div>
             <Button
@@ -92,8 +120,8 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
                   <SelectValue placeholder="Selecione o tipo de conta" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="artist">Artista (até 2 artistas)</SelectItem>
-                  <SelectItem value="label">Label (até 5 artistas)</SelectItem>
+                  <SelectItem value="artist">Artista</SelectItem>
+                  <SelectItem value="label">Label</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -158,7 +186,7 @@ const ArtistForm = ({ onClose, onSuccess }: ArtistFormProps) => {
                 disabled={loading || !name}
                 className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-semibold"
               >
-                {loading ? "Criando..." : "Criar Artista"}
+                {loading ? (editingArtist ? "Atualizando..." : "Criando...") : (editingArtist ? "Atualizar" : "Criar Artista")}
               </Button>
             </div>
           </form>
