@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Music, Headphones, TrendingUp, Phone, Mail } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import CountrySelector from "@/components/CountrySelector";
 import { countries, detectUserCountry } from "@/data/countries";
@@ -49,7 +48,6 @@ const AuthForm = () => {
       }
     } catch (error: any) {
       console.error("Erro de autenticação:", error);
-      // O toast será exibido pelo hook useAuth
     } finally {
       setLoading(false);
     }
@@ -80,7 +78,7 @@ const AuthForm = () => {
             </div>
             <div className="flex items-center space-x-3">
               <TrendingUp className="h-6 w-6 text-yellow-400" />
-              <span>Relatórios detalhados e analytics</span>
+              <span>Analytics avançados e relatórios detalhados</span>
             </div>
           </div>
         </div>
@@ -93,8 +91,8 @@ const AuthForm = () => {
             </CardTitle>
             <CardDescription className="text-gray-300">
               {isLogin 
-                ? "Entre na sua conta para acessar sua música" 
-                : "Crie sua conta e comece a distribuir sua música hoje"
+                ? "Entre na sua conta para acessar o painel de controle" 
+                : "Crie sua conta e comece a distribuir sua música profissionalmente"
               }
             </CardDescription>
           </CardHeader>

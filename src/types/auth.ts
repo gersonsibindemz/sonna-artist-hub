@@ -32,3 +32,15 @@ export interface AuthResponse {
   session?: Session;
   error?: string;
 }
+
+export interface Artist {
+  id: string;
+  name: string;
+  image_url?: string;
+  bio?: string;
+  genre?: string;
+  account_type: string;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
